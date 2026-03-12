@@ -1,10 +1,19 @@
 import { VoiceWebAgent } from '../agent.js';
 import { loadConfig } from '../utils/config.js';
+import { LLMProviderConfig } from '../services/llm-provider.factory.js';
 
 async function demoAutomation() {
   const config = loadConfig();
+
+  // Create LLM provider configuration
+  const llmProviderConfig: LLMProviderConfig = {
+    provider: config.llmProvider,
+    apiKey: getApiKeyForProvider(config),
+    groupId: config.minimaxGroupId
+  };
+
   const agent = new VoiceWebAgent(
-    config.anthropicApiKey,
+    llmProviderConfig,
     config.openaiApiKey
   );
 
@@ -31,5 +40,24 @@ async function demoAutomation() {
   await agent.stop();
 }
 
+/**
+ * Get the API key for the selected provider
+ */
+function getApiKeyForProvider(config: any): string {
+  switch (config.llmProvider) {
+    case 'claude':
+      return config.anthropicApiKey!;
+    case 'minimax':
+      return config.minimaxApiKey!;
+    case 'kimi':
+      return config.kimiApiKey!;
+    case 'deepseek':
+      return config.deepseekApiKey!;
+    default:
+      throw new Error(`Unknown provider: ${config.llmProvider}`);
+  }
+}
+
 // Run the demo
 demoAutomation().catch(console.error);
+

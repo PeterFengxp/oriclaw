@@ -1,23 +1,24 @@
 import { BrowserService } from './services/browser.service.js';
 import { SpeechService } from './services/speech.service.js';
-import { ClaudeService } from './services/claude.service.js';
+import { ILLMProvider } from './services/llm-provider.interface.js';
+import { LLMProviderFactory, LLMProviderConfig } from './services/llm-provider.factory.js';
 import { AgentAction, VoiceCommand } from './types/index.js';
 import { logger } from './utils/logger.js';
 
 export class VoiceWebAgent {
   private browserService: BrowserService;
   private speechService: SpeechService;
-  private claudeService: ClaudeService;
+  private llmService: ILLMProvider;
   private isRunning: boolean = false;
 
   constructor(
-    anthropicApiKey: string,
+    llmProviderConfig: LLMProviderConfig,
     openaiApiKey?: string,
     screenshotDir: string = './screenshots'
   ) {
     this.browserService = new BrowserService(screenshotDir);
     this.speechService = new SpeechService(openaiApiKey);
-    this.claudeService = new ClaudeService(anthropicApiKey);
+    this.llmService = LLMProviderFactory.createProvider(llmProviderConfig);
   }
 
   /**
@@ -81,13 +82,13 @@ export class VoiceWebAgent {
     // Take screenshot of current state
     const screenshotPath = await this.browserService.takeScreenshot();
 
-    // Analyze the screen with Claude's vision
-    const screenAnalysis = await this.claudeService.analyzeScreen(screenshotPath);
+    // Analyze the screen with LLM's vision
+    const screenAnalysis = await this.llmService.analyzeScreen(screenshotPath);
 
     logger.info('Screen analysis:', screenAnalysis.description.substring(0, 100) + '...');
 
     // Interpret the command in context
-    const actions = await this.claudeService.interpretCommand(
+    const actions = await this.llmService.interpretCommand(
       command.text,
       screenAnalysis
     );
@@ -173,8 +174,8 @@ export class VoiceWebAgent {
     };
 
     const screenshotPath = await this.browserService.takeScreenshot();
-    const screenAnalysis = await this.claudeService.analyzeScreen(screenshotPath);
-    const actions = await this.claudeService.interpretCommand(command.text, screenAnalysis);
+    const screenAnalysis = await this.llmService.analyzeScreen(screenshotPath);
+    const actions = await this.llmService.interpretCommand(command.text, screenAnalysis);
     await this.executeActions(actions);
   }
 
@@ -197,7 +198,7 @@ export class VoiceWebAgent {
     return {
       browser: this.browserService,
       speech: this.speechService,
-      claude: this.claudeService
+      llm: this.llmService
     };
   }
 }

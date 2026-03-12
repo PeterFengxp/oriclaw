@@ -1,9 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { logger } from '../utils/logger.js';
 import { ScreenAnalysis, AgentAction } from '../types/index.js';
+import { ILLMProvider } from './llm-provider.interface.js';
 import fs from 'fs/promises';
 
-export class ClaudeService {
+export class ClaudeService implements ILLMProvider {
   private client: Anthropic;
   private conversationHistory: Anthropic.MessageParam[] = [];
 

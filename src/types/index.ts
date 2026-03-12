@@ -31,8 +31,20 @@ export interface AgentAction {
 }
 
 export interface AgentConfig {
-  anthropicApiKey: string;
-  openaiApiKey?: string;
+  // LLM Provider Configuration
+  llmProvider: 'claude' | 'minimax' | 'kimi' | 'deepseek';
+
+  // API Keys for different providers
+  anthropicApiKey?: string;  // For Claude
+  minimaxApiKey?: string;    // For MiniMax
+  minimaxGroupId?: string;   // Required for MiniMax
+  kimiApiKey?: string;       // For Kimi (Moonshot AI)
+  deepseekApiKey?: string;   // For DeepSeek
+
+  // Other services
+  openaiApiKey?: string;     // For speech services (optional)
+
+  // Browser settings
   headless: boolean;
   screenshotDir: string;
 }

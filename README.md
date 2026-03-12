@@ -7,16 +7,21 @@ A voice-interactive web automation agent that connects to cloud-based multimodal
 ## 🌟 Features
 
 - 🎤 **Voice Command Processing** - Natural language voice commands for web control
-- 👁️ **Visual Screen Analysis** - Claude AI analyzes screenshots to understand page context
+- 👁️ **Visual Screen Analysis** - Multimodal AI analyzes screenshots to understand page context
 - 🤖 **Intelligent Action Interpretation** - AI determines the correct browser actions from voice commands
 - 🌐 **Browser Automation** - Powered by Playwright for reliable web interaction
 - 🔄 **Context-Aware** - Maintains conversation history for better understanding
 - 🗣️ **Text-to-Speech** - Agent provides voice feedback (ready for TTS integration)
+- 🔌 **Multiple AI Providers** - Support for Claude, MiniMax, Kimi, and DeepSeek
 
 ## 📋 Requirements
 
 - Node.js 18+
-- Anthropic API key (for Claude AI)
+- At least one of the following API keys:
+  - Anthropic API key (for Claude AI)
+  - MiniMax API key + Group ID (for MiniMax 国内版本)
+  - Kimi API key (for Kimi 多模态版本)
+  - DeepSeek API key (for DeepSeek)
 - Optional: OpenAI API key (for Whisper speech recognition)
 
 ## 🚀 Quick Start
@@ -46,8 +51,21 @@ cp .env.example .env
 Edit `.env` and add your API keys:
 
 ```env
-# Required: Anthropic Claude API Key
+# Select your LLM provider (options: claude, minimax, kimi, deepseek)
+LLM_PROVIDER=claude
+
+# Required for Claude: Anthropic API Key
 ANTHROPIC_API_KEY=sk-ant-xxxxx
+
+# Required for MiniMax: API Key + Group ID
+MINIMAX_API_KEY=your_minimax_api_key
+MINIMAX_GROUP_ID=your_group_id
+
+# Required for Kimi: API Key
+KIMI_API_KEY=your_kimi_api_key
+
+# Required for DeepSeek: API Key
+DEEPSEEK_API_KEY=your_deepseek_api_key
 
 # Optional: OpenAI API Key for Whisper
 OPENAI_API_KEY=sk-xxxxx
@@ -55,6 +73,8 @@ OPENAI_API_KEY=sk-xxxxx
 # Browser settings
 HEADLESS=false
 ```
+
+> 📘 **See [MULTIMODAL_PROVIDERS.md](./MULTIMODAL_PROVIDERS.md)** for detailed configuration guide for each provider.
 
 ### 3. Build
 
@@ -94,9 +114,17 @@ You can also use the agent programmatically in your own code:
 
 ```typescript
 import { VoiceWebAgent } from './agent.js';
+import { LLMProviderConfig } from './services/llm-provider.factory.js';
+
+// Configure your LLM provider
+const llmConfig: LLMProviderConfig = {
+  provider: 'claude', // or 'minimax', 'kimi', 'deepseek'
+  apiKey: 'your-api-key',
+  groupId: 'your-group-id' // only required for MiniMax
+};
 
 const agent = new VoiceWebAgent(
-  'your-anthropic-api-key',
+  llmConfig,
   'your-openai-api-key' // optional
 );
 
@@ -107,10 +135,10 @@ await agent.executeCommand('Navigate to github.com');
 await agent.executeCommand('Search for "typescript"');
 
 // Access services directly
-const { browser, claude, speech } = agent.getServices();
+const { browser, llm, speech } = agent.getServices();
 await browser.navigate('https://example.com');
 const screenshot = await browser.takeScreenshot();
-const analysis = await claude.analyzeScreen(screenshot);
+const analysis = await llm.analyzeScreen(screenshot);
 
 await agent.stop();
 ```
@@ -133,9 +161,14 @@ oriclaw/
 │   ├── types/
 │   │   └── index.ts            # TypeScript interfaces
 │   ├── services/
-│   │   ├── browser.service.ts  # Browser automation (Playwright)
-│   │   ├── speech.service.ts   # Speech recognition/synthesis
-│   │   └── claude.service.ts   # Claude AI integration
+│   │   ├── browser.service.ts          # Browser automation (Playwright)
+│   │   ├── speech.service.ts           # Speech recognition/synthesis
+│   │   ├── llm-provider.interface.ts   # LLM provider interface
+│   │   ├── llm-provider.factory.ts     # Provider factory
+│   │   ├── claude.service.ts           # Claude AI integration
+│   │   ├── minimax.service.ts          # MiniMax integration
+│   │   ├── kimi.service.ts             # Kimi integration
+│   │   └── deepseek.service.ts         # DeepSeek integration
 │   ├── utils/
 │   │   ├── config.ts           # Configuration loader
 │   │   └── logger.ts           # Logging utility
@@ -161,11 +194,18 @@ Handles all browser automation:
 - Screenshot capture
 - DOM access
 
-### ClaudeService
+### LLMProviderFactory
+Creates LLM provider instances based on configuration:
+- Supports multiple providers (Claude, MiniMax, Kimi, DeepSeek)
+- Validates provider configuration
+- Returns provider implementing ILLMProvider interface
+
+### LLM Services (Claude/MiniMax/Kimi/DeepSeek)
 Manages AI interactions:
-- Visual screen analysis using Claude's vision capabilities
+- Visual screen analysis using multimodal capabilities
 - Command interpretation in context
 - Action planning and generation
+- All implement the same ILLMProvider interface
 
 ### SpeechService
 Handles voice I/O:
@@ -176,11 +216,49 @@ Handles voice I/O:
 ## 🎯 How It Works
 
 1. **Capture**: Agent takes a screenshot of the current browser state
-2. **Analyze**: Claude AI analyzes the screenshot to understand page content and structure
+2. **Analyze**: Multimodal AI analyzes the screenshot to understand page content and structure
 3. **Listen**: Agent receives voice command (currently via console, ready for audio input)
-4. **Interpret**: Claude interprets the command in the context of the current screen
+4. **Interpret**: AI interprets the command in the context of the current screen
 5. **Act**: Agent executes the determined browser actions
 6. **Repeat**: Process repeats for continuous interaction
+
+## 🔌 Multimodal LLM Providers
+
+Oriclaw supports multiple multimodal AI providers:
+
+### Supported Providers
+
+| Provider | Model | Region | Features |
+|----------|-------|--------|----------|
+| **Claude** | claude-3-5-sonnet | International | Best vision quality, JSON output |
+| **MiniMax** | abab6.5-chat | 国内 | Cost-effective, domestic access |
+| **Kimi** | moonshot-v1-32k | 国内 | Large context (32K), fast |
+| **DeepSeek** | deepseek-chat | 国内 | Good reasoning, cost-effective |
+
+### Switching Providers
+
+Simply change the `LLM_PROVIDER` environment variable in your `.env` file:
+
+```bash
+# Use Claude (default)
+LLM_PROVIDER=claude
+ANTHROPIC_API_KEY=sk-ant-xxxxx
+
+# Use MiniMax
+LLM_PROVIDER=minimax
+MINIMAX_API_KEY=your_key
+MINIMAX_GROUP_ID=your_id
+
+# Use Kimi
+LLM_PROVIDER=kimi
+KIMI_API_KEY=your_key
+
+# Use DeepSeek
+LLM_PROVIDER=deepseek
+DEEPSEEK_API_KEY=your_key
+```
+
+For detailed configuration instructions, see [MULTIMODAL_PROVIDERS.md](./MULTIMODAL_PROVIDERS.md).
 
 ## 🔐 Security Notes
 
@@ -238,7 +316,10 @@ MIT
 
 ## 🙏 Acknowledgments
 
-- [Anthropic Claude](https://www.anthropic.com/) - Multimodal AI capabilities
+- [Anthropic Claude](https://www.anthropic.com/) - Claude multimodal AI
+- [MiniMax](https://www.minimaxi.com/) - MiniMax 国内多模态大模型
+- [Moonshot AI](https://platform.moonshot.cn/) - Kimi 多模态大模型
+- [DeepSeek](https://platform.deepseek.com/) - DeepSeek AI
 - [Playwright](https://playwright.dev/) - Browser automation
 - [OpenAI](https://openai.com/) - Speech recognition (Whisper) and TTS
 
